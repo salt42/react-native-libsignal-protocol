@@ -85,10 +85,38 @@ public class RNLibsignalProtocolModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void getIdentityKeyPair(Promise promise) {
+    try {
+      IdentityKeyPair identityKeyPair = protocolStorage.getIdentityKeyPair();
+      String publicKey = Base64.encodeToString(identityKeyPair.getPublicKey().serialize(), Base64.DEFAULT);
+      String privateKey = Base64.encodeToString(identityKeyPair.getPrivateKey().serialize(), Base64.DEFAULT);
+      String serializedKP = Base64.encodeToString(identityKeyPair.serialize(), Base64.DEFAULT);
+      WritableMap keyPairMap = Arguments.createMap();
+      keyPairMap.putString("publicKey", publicKey);
+      keyPairMap.putString("privateKey", privateKey);
+      keyPairMap.putString("serializedKP", serializedKP);
+      promise.resolve(keyPairMap);
+
+    } catch (Exception e) {
+      promise.reject(RN_LIBSIGNAL_ERROR, e.getMessage());
+    }
+  }
+
+  @ReactMethod
   public void generateRegistrationId(Promise promise) {
     try {
       int registrationId = KeyHelper.generateRegistrationId(false);
       protocolStorage.setLocalRegistrationId(registrationId);
+      promise.resolve(registrationId);
+    } catch (Exception e) {
+      promise.reject(RN_LIBSIGNAL_ERROR, e.getMessage());
+    }
+  }
+
+  @ReactMethod
+  public void getRegistrationId(Promise promise) {
+    try {
+      int registrationId = protocolStorage.getLocalRegistrationId();
       promise.resolve(registrationId);
     } catch (Exception e) {
       promise.reject(RN_LIBSIGNAL_ERROR, e.getMessage());
@@ -123,6 +151,44 @@ public class RNLibsignalProtocolModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void getPreKey(int id, Promise promise) {
+    try {
+      PreKeyRecord key = protocolStorage.loadPreKey(id);
+      WritableMap preKeyMap = Arguments.createMap();
+      String preKeyPublic = Base64.encodeToString(key.getKeyPair().getPublicKey().serialize(), Base64.DEFAULT);
+      String preKeyPrivate = Base64.encodeToString(key.getKeyPair().getPrivateKey().serialize(), Base64.DEFAULT);
+      int preKeyId = key.getId();
+      String seriaizedPreKey = Base64.encodeToString(key.serialize(), Base64.DEFAULT);
+      preKeyMap.putString("preKeyPublic", preKeyPublic);
+      preKeyMap.putString("preKeyPrivate", preKeyPrivate);
+      preKeyMap.putInt("preKeyId", preKeyId);
+      preKeyMap.putString("seriaizedPreKey", seriaizedPreKey);
+      promise.resolve(preKeyMap);
+    } catch (Exception e) {
+      promise.reject(RN_LIBSIGNAL_ERROR, e.getMessage());
+    }
+  }
+
+  @ReactMethod
+  public void containsPreKey(int id, Promise promise) {
+    try {
+      promise.resolve(protocolStorage.containsPreKey(id));
+    } catch (Exception e) {
+      promise.reject(RN_LIBSIGNAL_ERROR, e.getMessage());
+    }
+  }
+
+  @ReactMethod
+  public void removePreKey(int id, Promise promise) {
+    try {
+      protocolStorage.removePreKey(id);
+      promise.resolve(true);
+    } catch (Exception e) {
+      promise.reject(RN_LIBSIGNAL_ERROR, e.getMessage());
+    }
+  }
+
+  @ReactMethod
   public void generateSignedPreKey(ReadableMap identityKeyPair, int signedKeyId, Promise promise) {
     try {
       byte[] serialized = Base64.decode(identityKeyPair.getString("serializedKP"), Base64.DEFAULT);
@@ -149,6 +215,32 @@ public class RNLibsignalProtocolModule extends ReactContextBaseJavaModule {
       promise.reject(RN_LIBSIGNAL_ERROR, e.getMessage());
     }
   }
+
+  @ReactMethod
+  public void getSignedPreKey(int signedKeyId, Promise promise) {
+    try {
+      SignedPreKeyRecord signedPreKey = protocolStorage.loadSignedPreKey(signedKeyId);
+      String signedPreKeyPublic = Base64.encodeToString(signedPreKey.getKeyPair().getPublicKey().serialize(), Base64.DEFAULT);
+      String signedPreKeyPrivate = Base64.encodeToString(signedPreKey.getKeyPair().getPrivateKey().serialize(), Base64.DEFAULT);
+      String signedPreKeySignature = Base64.encodeToString(signedPreKey.getSignature(), Base64.DEFAULT);
+      int signedPreKeyId = signedPreKey.getId();
+      String seriaizedSignedPreKey = Base64.encodeToString(signedPreKey.serialize(), Base64.DEFAULT);
+
+      WritableMap signedPreKeyMap = Arguments.createMap();
+      signedPreKeyMap.putString("signedPreKeyPublic", signedPreKeyPublic);
+      signedPreKeyMap.putString("signedPreKeyPrivate", signedPreKeyPrivate);
+      signedPreKeyMap.putString("signedPreKeySignature", signedPreKeySignature);
+      signedPreKeyMap.putInt("signedPreKeyId", signedPreKeyId);
+      signedPreKeyMap.putString("seriaizedSignedPreKey", seriaizedSignedPreKey);
+
+      protocolStorage.storeSignedPreKey(signedPreKeyId, signedPreKey);
+
+      promise.resolve(signedPreKeyMap);
+    } catch (Exception e) {
+      promise.reject(RN_LIBSIGNAL_ERROR, e.getMessage());
+    }
+  }
+
 
   @ReactMethod
   public void buildSession(String recipientId, int deviceId, ReadableMap retrievedPreKeyBundle, Promise promise) {
